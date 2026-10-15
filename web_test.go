@@ -61,6 +61,69 @@ func TestWebDashboardShowsRankingsReasonsAndMethodology(t *testing.T) {
 	}
 }
 
+func TestWebRejectsUnknownBand(t *testing.T) {
+	response := webRequest(t, NewHandler(), http.MethodGet, "/?band=urgent")
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("GET /?band=urgent status = %d, want %d; body: %s", response.Code, http.StatusBadRequest, response.Body.String())
+	}
+	const want = "Invalid priority band. Choose high, medium, low, or omit the band filter.\n"
+	if got := response.Body.String(); got != want {
+		t.Errorf("GET /?band=urgent body = %q, want %q", got, want)
+	}
+	if got := leadRowCount(response.Body.String()); got != 0 {
+		t.Errorf("invalid band rendered %d lead rows, want none", got)
+	}
+}
+
+func TestWebBandValidationBoundaries(t *testing.T) {
+	scores := webRankedScores(t)
+	cases := []struct {
+		name, target, band string
+		invalid            bool
+	}{
+		{name: "omitted", target: "/"},
+		{name: "empty", target: "/?band="},
+		{name: "high", target: "/?band=high", band: "high"},
+		{name: "medium", target: "/?band=medium", band: "medium"},
+		{name: "low", target: "/?band=low", band: "low"},
+		{name: "whitespace-only invalid", target: "/?band=%20", invalid: true},
+		{name: "later duplicate invalid", target: "/?band=low&band=urgent", invalid: true},
+	}
+	const recovery = "Invalid priority band. Choose high, medium, low, or omit the band filter.\n"
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			response := webRequest(t, NewHandler(), http.MethodGet, tc.target)
+			if tc.invalid {
+				if response.Code != http.StatusBadRequest {
+					t.Fatalf("GET %s status = %d, want %d", tc.target, response.Code, http.StatusBadRequest)
+				}
+				if got := response.Body.String(); got != recovery {
+					t.Errorf("GET %s body = %q, want %q", tc.target, got, recovery)
+				}
+				if got := leadRowCount(response.Body.String()); got != 0 {
+					t.Errorf("invalid band rendered %d lead rows, want none", got)
+				}
+				return
+			}
+
+			if response.Code != http.StatusOK {
+				t.Fatalf("GET %s status = %d, want %d", tc.target, response.Code, http.StatusOK)
+			}
+			wantRows := 0
+			for _, score := range scores {
+				if tc.band == "" || score.Band == tc.band {
+					wantRows++
+				}
+			}
+			if got := leadRowCount(response.Body.String()); got != wantRows {
+				t.Errorf("GET %s rendered %d lead rows, want %d", tc.target, got, wantRows)
+			}
+		})
+	}
+}
+
 func TestWebSearchAndBandFiltersWorkTogether(t *testing.T) {
 	scores := webRankedScores(t)
 	selected := uniqueSearchLead(t, scores)
@@ -129,6 +192,43 @@ func TestWebSearchInputIsEscaped(t *testing.T) {
 	}
 	if !strings.Contains(body, "&lt;script&gt;") {
 		t.Error("escaped search input is not preserved in the search field")
+	}
+}
+
+func TestWebBandValidRepeatedValuesKeepFirstNonEmpty(t *testing.T) {
+	scores := webRankedScores(t)
+	cases := []struct {
+		name, target, wantBand string
+	}{
+		{name: "low before high", target: "/?band=low&band=high", wantBand: "low"},
+		{name: "high before low", target: "/?band=high&band=low", wantBand: "high"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			response := webRequest(t, NewHandler(), http.MethodGet, tc.target)
+			if response.Code != http.StatusOK {
+				t.Fatalf("GET %s status = %d, want %d", tc.target, response.Code, http.StatusOK)
+			}
+
+			body := response.Body.String()
+			wantRows := 0
+			for _, score := range scores {
+				want := score.Band == tc.wantBand
+				if want {
+					wantRows++
+				}
+				if got := strings.Contains(body, html.EscapeString(score.Lead.Name)); got != want {
+					t.Errorf("GET %s includes lead %q = %t, want %t", tc.target, score.Lead.Name, got, want)
+				}
+			}
+			if wantRows == 0 {
+				t.Fatalf("test fixtures contain no %q leads", tc.wantBand)
+			}
+			if got := leadRowCount(body); got != wantRows {
+				t.Errorf("GET %s rendered %d rows, want %d", tc.target, got, wantRows)
+			}
+		})
 	}
 }
 

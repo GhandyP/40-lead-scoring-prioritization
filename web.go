@@ -62,7 +62,11 @@ func (h *portfolioHandler) serveDashboard(w http.ResponseWriter, r *http.Request
 	}
 
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
-	band := validBand(r.URL.Query().Get("band"))
+	band, valid := validBand(r.URL.Query()["band"])
+	if !valid {
+		http.Error(w, "Invalid priority band. Choose high, medium, low, or omit the band filter.", http.StatusBadRequest)
+		return
+	}
 	queryLower := strings.ToLower(query)
 	filtered := make([]dashboardLead, 0, len(h.ranked))
 	for _, score := range h.ranked {
@@ -136,14 +140,26 @@ func requireGET(w http.ResponseWriter, r *http.Request) bool {
 	return false
 }
 
-func validBand(value string) string {
-	band := strings.ToLower(strings.TrimSpace(value))
-	switch band {
-	case "high", "medium", "low":
-		return band
-	default:
-		return ""
+func validBand(values []string) (string, bool) {
+	band := ""
+	for _, value := range values {
+		if value == "" {
+			continue
+		}
+		normalized := strings.ToLower(strings.TrimSpace(value))
+		if normalized == "" {
+			return "", false
+		}
+		switch normalized {
+		case "high", "medium", "low":
+			if band == "" {
+				band = normalized
+			}
+		default:
+			return "", false
+		}
 	}
+	return band, true
 }
 
 func matchesLead(lead Lead, query string) bool {
