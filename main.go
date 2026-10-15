@@ -1,21 +1,14 @@
 package main
 
 import (
-	"context"
 	"log"
-	"os"
-
-	"github.com/GhandyP/adk-go-enterprise-cookbook/internal/adkhelper"
+	"net/http"
 )
 
 func main() {
-	if err := adkhelper.Run(
-		context.Background(),
-		os.Args[1:],
-		"case_40_lead_scoring_prioritization",
-		"A text-only starting point for lead scoring and prioritization.",
-		"Explain a lead priority from the features supplied by the user. Keep score reasoning tied to those features, flag missing data, and do not claim CRM or predictive-model access.",
-	); err != nil {
+	const address = "127.0.0.1:8080"
+	log.Printf("Lead portfolio listening at http://%s", address)
+	if err := http.ListenAndServe(address, NewHandler()); err != nil {
 		log.Fatal(err)
 	}
 }

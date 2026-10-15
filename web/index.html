@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f2ec">
+  <title>Lead portfolio | Sales workbench</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to lead ranking</a>
+  <div class="page-frame">
+    <header class="site-header">
+      <a class="wordmark" href="/" aria-label="Lead portfolio home">Portfolio <span>/</span> Sales</a>
+      <p class="header-note">Read-only sample workbench</p>
+    </header>
+
+    <main id="main">
+      <section class="page-intro" aria-labelledby="page-title">
+        <h1 id="page-title">Lead portfolio</h1>
+        <p class="intro-copy">A ranked view of fictional prospects, with the signals behind each priority kept in plain sight.</p>
+        <p class="sample-note">A small, self-contained example. No CRM connection or customer data.</p>
+      </section>
+
+      <div class="workbench">
+        <section class="ranking-section" aria-labelledby="ranking-title">
+          <div class="section-heading">
+            <div>
+              <h2 id="ranking-title">Ranked leads</h2>
+              <p class="section-caption">Scores sort high to low; ties sort by lead ID ascending.</p>
+            </div>
+            <p class="result-count" role="status">Showing <strong>{{len .Leads}}</strong> of {{.Total}} leads</p>
+          </div>
+
+          <form class="filter-form" method="get" action="/" role="search" aria-label="Filter the ranked leads">
+            <div class="form-field search-field">
+              <label for="q">Search leads</label>
+              <input id="q" name="q" type="search" value="{{.Query}}" placeholder="Name, company, or ID">
+            </div>
+            <div class="form-field band-field">
+              <label for="band">Priority band</label>
+              <select id="band" name="band">
+                <option value="" {{if eq .Band ""}}selected{{end}}>All priorities</option>
+                <option value="high" {{if eq .Band "high"}}selected{{end}}>High</option>
+                <option value="medium" {{if eq .Band "medium"}}selected{{end}}>Medium</option>
+                <option value="low" {{if eq .Band "low"}}selected{{end}}>Low</option>
+              </select>
+            </div>
+            <button type="submit">Apply filters</button>
+            <a class="reset-link" href="/">Clear filters</a>
+          </form>
+
+          {{if .Leads}}
+            <div class="table-scroll" role="region" aria-label="Ranked lead results" tabindex="0">
+              <table class="ranking-table">
+                <caption class="visually-hidden">Lead rankings with priority scores and explanations</caption>
+                <thead>
+                  <tr>
+                    <th scope="col" class="rank-heading">Rank</th>
+                    <th scope="col">Lead</th>
+                    <th scope="col" class="score-heading">Score</th>
+                    <th scope="col" class="priority-heading">Priority</th>
+                    <th scope="col">Scoring reasons</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {{range .Leads}}
+                    <tr class="lead-row">
+                      <td class="rank-cell" data-label="Rank">{{.Rank}}</td>
+                      <th scope="row" class="lead-cell">
+                        <span class="lead-name">{{.Score.Lead.Name}}</span>
+                        <span class="lead-company">{{.Score.Lead.Company}}</span>
+                        <span class="lead-id">Ref {{.Score.Lead.ID}}</span>
+                        <span class="mobile-priority priority priority-{{.Score.Band}}">{{.Score.Band}} priority</span>
+                      </th>
+                      <td class="score-cell" data-label="Score"><strong>{{.Score.Score}}</strong><span class="score-scale"> / 100</span></td>
+                      <td class="priority-cell" data-label="Priority"><span class="priority priority-{{.Score.Band}}">{{.Score.Band}}</span></td>
+                      <td class="reason-cell" data-label="Scoring reasons">
+                        <ul class="reason-list">
+                          {{range .Score.Reasons}}<li>{{.}}</li>{{end}}
+                        </ul>
+                        {{if .Score.Missing}}
+                          <p class="missing-note"><strong>Missing data:</strong> {{range $index, $item := .Score.Missing}}{{if $index}}, {{end}}{{$item}}{{end}}</p>
+                        {{end}}
+                      </td>
+                    </tr>
+                  {{end}}
+                </tbody>
+              </table>
+            </div>
+          {{else}}
+            <div class="empty-state" role="status">
+              <h3>No leads match these filters</h3>
+              <p>Try a broader search or clear the filters to see the full sample.</p>
+              <a href="/">Show all leads</a>
+            </div>
+          {{end}}
+        </section>
+
+        <aside class="methodology" aria-labelledby="methodology-title">
+          <h2 id="methodology-title">How the score works</h2>
+          <p class="rule-version">Illustrative rules · {{if .Version}}{{.Version}}{{else}}v1{{end}}</p>
+          <dl class="rule-list">
+            <div><dt>Demo requested</dt><dd>30 points; otherwise 0</dd></div>
+            <div><dt>Budget confirmed</dt><dd>25 points; otherwise 0</dd></div>
+            <div><dt>Timeline within 30 days</dt><dd>25 points</dd></div>
+            <div><dt>Timeline from 31–90 days</dt><dd>10 points</dd></div>
+            <div><dt>Timeline over 90 days</dt><dd>0 points</dd></div>
+            <div><dt>Each recorded interaction</dt><dd>5 points, up to 4</dd></div>
+          </dl>
+          <p class="method-note">Scores range from 0 to 100 points. Missing optional timeline or interaction inputs are labeled missing, not presented as known zero values.</p>
+          <p class="disclaimer"><strong>Illustrative, not predictive.</strong> All people and companies here are fictional. The score is an advisory rule-based aid, not a calibrated conversion probability or a substitute for a person's judgment.</p>
+        </aside>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <p>Sample data only <span aria-hidden="true">·</span> No records are changed or sent anywhere</p>
+    </footer>
+  </div>
+</body>
+</html>
